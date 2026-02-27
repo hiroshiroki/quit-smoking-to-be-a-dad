@@ -1,6 +1,13 @@
 -- ============================================
 -- パパになるための禁煙 - Supabaseスキーマ
+-- 同一Supabaseプロジェクト内でスキーマ分離
 -- ============================================
+
+-- smokeスキーマを作成（他プロジェクトと同居するため）
+CREATE SCHEMA IF NOT EXISTS smoke;
+
+-- このスクリプト内のsearch_pathをsmokeに設定
+SET search_path TO smoke;
 
 -- 禁煙設定テーブル
 CREATE TABLE IF NOT EXISTS user_settings (
@@ -56,7 +63,7 @@ CREATE TABLE IF NOT EXISTS diary_entries (
 );
 
 -- updated_at自動更新トリガー
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE OR REPLACE FUNCTION smoke.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -66,8 +73,8 @@ $$ language 'plpgsql';
 
 CREATE TRIGGER update_user_settings_updated_at
     BEFORE UPDATE ON user_settings
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
 
 CREATE TRIGGER update_fertility_logs_updated_at
     BEFORE UPDATE ON fertility_logs
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();

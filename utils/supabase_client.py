@@ -23,19 +23,22 @@ def get_supabase_client() -> Client:
     return create_client(url, key)
 
 
+def _table(table_name: str):
+    """smokeスキーマのテーブルを返すヘルパー"""
+    return get_supabase_client().schema("smoke").table(table_name)
+
+
 # ─── user_settings ──────────────────────────────────────────────────────────
 
 def get_user_settings() -> Optional[dict]:
     """ユーザー設定を取得する（最新1件）"""
-    client = get_supabase_client()
-    res = client.table("user_settings").select("*").order("created_at", desc=True).limit(1).execute()
+    res = _table("user_settings").select("*").order("created_at", desc=True).limit(1).execute()
     return res.data[0] if res.data else None
 
 
 def upsert_user_settings(quit_date: date, cigarettes_per_day: int,
                          price_per_pack: int, cigarettes_per_pack: int = 20) -> dict:
     """ユーザー設定を保存する（既存があれば上書き）"""
-    client = get_supabase_client()
     existing = get_user_settings()
     data = {
         "quit_date": str(quit_date),
@@ -44,9 +47,9 @@ def upsert_user_settings(quit_date: date, cigarettes_per_day: int,
         "cigarettes_per_pack": cigarettes_per_pack,
     }
     if existing:
-        res = client.table("user_settings").update(data).eq("id", existing["id"]).execute()
+        res = _table("user_settings").update(data).eq("id", existing["id"]).execute()
     else:
-        res = client.table("user_settings").insert(data).execute()
+        res = _table("user_settings").insert(data).execute()
     return res.data[0]
 
 
@@ -55,21 +58,19 @@ def upsert_user_settings(quit_date: date, cigarettes_per_day: int,
 def add_craving_log(intensity: int, trigger: str, resisted: bool,
                     message: str = "") -> dict:
     """衝動ログを追加する"""
-    client = get_supabase_client()
     data = {
         "intensity": intensity,
         "trigger": trigger,
         "resisted": resisted,
         "message": message,
     }
-    res = client.table("craving_logs").insert(data).execute()
+    res = _table("craving_logs").insert(data).execute()
     return res.data[0]
 
 
 def get_craving_logs() -> list[dict]:
     """衝動ログを全件取得（新しい順）"""
-    client = get_supabase_client()
-    res = client.table("craving_logs").select("*").order("logged_at", desc=True).execute()
+    res = _table("craving_logs").select("*").order("logged_at", desc=True).execute()
     return res.data
 
 
@@ -77,9 +78,8 @@ def get_craving_logs() -> list[dict]:
 
 def get_today_fertility_log() -> Optional[dict]:
     """今日の妊活ログを取得する"""
-    client = get_supabase_client()
     today = str(date.today())
-    res = client.table("fertility_logs").select("*").eq("date", today).limit(1).execute()
+    res = _table("fertility_logs").select("*").eq("date", today).limit(1).execute()
     return res.data[0] if res.data else None
 
 
@@ -87,7 +87,6 @@ def upsert_fertility_log(log_date: date, zinc: bool, folate: bool,
                          sleep_hours: float, exercise: bool,
                          stress: int, notes: str = "") -> dict:
     """妊活ログを保存する（当日分のupsert）"""
-    client = get_supabase_client()
     existing = get_today_fertility_log()
     data = {
         "date": str(log_date),
@@ -99,16 +98,15 @@ def upsert_fertility_log(log_date: date, zinc: bool, folate: bool,
         "notes": notes,
     }
     if existing:
-        res = client.table("fertility_logs").update(data).eq("id", existing["id"]).execute()
+        res = _table("fertility_logs").update(data).eq("id", existing["id"]).execute()
     else:
-        res = client.table("fertility_logs").insert(data).execute()
+        res = _table("fertility_logs").insert(data).execute()
     return res.data[0]
 
 
 def get_fertility_logs() -> list[dict]:
     """妊活ログを全件取得（新しい順）"""
-    client = get_supabase_client()
-    res = client.table("fertility_logs").select("*").order("date", desc=True).execute()
+    res = _table("fertility_logs").select("*").order("date", desc=True).execute()
     return res.data
 
 
@@ -116,33 +114,29 @@ def get_fertility_logs() -> list[dict]:
 
 def get_achieved_milestones() -> set[str]:
     """達成済みマイルストーンのキーセットを返す"""
-    client = get_supabase_client()
-    res = client.table("milestones").select("milestone_key").execute()
+    res = _table("milestones").select("milestone_key").execute()
     return {row["milestone_key"] for row in res.data}
 
 
 def achieve_milestone(milestone_key: str) -> None:
     """マイルストーンを達成済みとして記録する"""
-    client = get_supabase_client()
-    client.table("milestones").upsert({"milestone_key": milestone_key}).execute()
+    _table("milestones").upsert({"milestone_key": milestone_key}).execute()
 
 
 # ─── diary_entries ───────────────────────────────────────────────────────────
 
 def add_diary_entry(message: str, mood: str) -> dict:
     """日記エントリーを追加する"""
-    client = get_supabase_client()
     data = {
         "date": str(date.today()),
         "message": message,
         "mood": mood,
     }
-    res = client.table("diary_entries").insert(data).execute()
+    res = _table("diary_entries").insert(data).execute()
     return res.data[0]
 
 
 def get_diary_entries() -> list[dict]:
     """日記エントリーを全件取得（新しい順）"""
-    client = get_supabase_client()
-    res = client.table("diary_entries").select("*").order("date", desc=True).execute()
+    res = _table("diary_entries").select("*").order("date", desc=True).execute()
     return res.data
