@@ -6,11 +6,11 @@
 -- smokeスキーマを作成（他プロジェクトと同居するため）
 CREATE SCHEMA IF NOT EXISTS smoke;
 
--- このスクリプト内のsearch_pathをsmokeに設定
-SET search_path TO smoke;
+-- ※ SET search_path は使用しない（Supabaseでは地雷）
+-- ※ すべてのオブジェクトは smoke.テーブル名 でフル指定する
 
 -- 禁煙設定テーブル
-CREATE TABLE IF NOT EXISTS user_settings (
+CREATE TABLE IF NOT EXISTS smoke.user_settings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     quit_date DATE NOT NULL,               -- 禁煙開始日
     cigarettes_per_day INTEGER NOT NULL,   -- 1日の本数
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
 );
 
 -- 衝動ログテーブル
-CREATE TABLE IF NOT EXISTS craving_logs (
+CREATE TABLE IF NOT EXISTS smoke.craving_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     logged_at TIMESTAMPTZ DEFAULT NOW(),   -- ログ日時
     intensity INTEGER NOT NULL CHECK (intensity BETWEEN 1 AND 5), -- 衝動の強さ(1-5)
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS craving_logs (
 );
 
 -- 妊活デイリーチェックテーブル
-CREATE TABLE IF NOT EXISTS fertility_logs (
+CREATE TABLE IF NOT EXISTS smoke.fertility_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     date DATE NOT NULL UNIQUE,             -- 記録日（1日1件）
     zinc BOOLEAN DEFAULT FALSE,            -- 亜鉛摂取チェック
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS fertility_logs (
 );
 
 -- マイルストーン達成テーブル
-CREATE TABLE IF NOT EXISTS milestones (
+CREATE TABLE IF NOT EXISTS smoke.milestones (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     milestone_key TEXT NOT NULL UNIQUE,    -- マイルストーン識別キー
     achieved_at TIMESTAMPTZ DEFAULT NOW(), -- 達成日時
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS milestones (
 );
 
 -- 日記テーブル（未来の子どもへのメッセージ）
-CREATE TABLE IF NOT EXISTS diary_entries (
+CREATE TABLE IF NOT EXISTS smoke.diary_entries (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     date DATE NOT NULL,                    -- 投稿日
     message TEXT NOT NULL,                 -- メッセージ本文
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS diary_entries (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- updated_at自動更新トリガー
+-- updated_at自動更新トリガー関数
 CREATE OR REPLACE FUNCTION smoke.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -72,11 +72,11 @@ END;
 $$ language 'plpgsql';
 
 CREATE TRIGGER update_user_settings_updated_at
-    BEFORE UPDATE ON user_settings
+    BEFORE UPDATE ON smoke.user_settings
     FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
 
 CREATE TRIGGER update_fertility_logs_updated_at
-    BEFORE UPDATE ON fertility_logs
+    BEFORE UPDATE ON smoke.fertility_logs
     FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
 
 -- ============================================
@@ -84,7 +84,7 @@ CREATE TRIGGER update_fertility_logs_updated_at
 -- ============================================
 
 -- パートナー共有設定テーブル
-CREATE TABLE IF NOT EXISTS partner_shares (
+CREATE TABLE IF NOT EXISTS smoke.partner_shares (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     share_code TEXT NOT NULL UNIQUE,       -- 共有コード（8文字英数大文字）
     is_active BOOLEAN DEFAULT TRUE,        -- 有効/無効フラグ
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS partner_shares (
 );
 
 -- パートナーメッセージテーブル
-CREATE TABLE IF NOT EXISTS partner_messages (
+CREATE TABLE IF NOT EXISTS smoke.partner_messages (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     share_code TEXT NOT NULL,              -- 対応する共有コード
     sender TEXT NOT NULL CHECK (sender IN ('user', 'partner')), -- 送信者種別
@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS partner_messages (
 
 -- partner_shares の updated_at 自動更新トリガー
 CREATE TRIGGER update_partner_shares_updated_at
-    BEFORE UPDATE ON partner_shares
+    BEFORE UPDATE ON smoke.partner_shares
     FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
 
 -- RLS（Row Level Security）は使わずサービスキーでアクセスするため設定不要
@@ -112,7 +112,7 @@ CREATE TRIGGER update_partner_shares_updated_at
 -- 再禁煙サポート: 挑戦履歴テーブル
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS quit_attempts (
+CREATE TABLE IF NOT EXISTS smoke.quit_attempts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     start_date DATE NOT NULL,              -- 挑戦開始日
     end_date DATE,                         -- 挑戦終了日（NULLなら現在継続中）
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS quit_attempts (
 -- トリガー別コーピング戦略テーブル
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS coping_strategies (
+CREATE TABLE IF NOT EXISTS smoke.coping_strategies (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     trigger TEXT NOT NULL UNIQUE,          -- トリガー名
     strategy TEXT NOT NULL,               -- 対処法
