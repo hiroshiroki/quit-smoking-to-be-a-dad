@@ -5,7 +5,12 @@ from datetime import date
 
 import streamlit as st
 
-from utils.supabase_client import get_user_settings, upsert_user_settings
+from utils.supabase_client import (
+    get_user_settings,
+    upsert_user_settings,
+    get_coping_strategies,
+    upsert_coping_strategy,
+)
 from utils.discord_notifier import is_discord_configured, send_test_message
 
 st.set_page_config(page_title="設定", page_icon="⚙️", layout="centered")
@@ -126,6 +131,41 @@ else:
         "4. Streamlit Secrets の `DISCORD_WEBHOOK_URL` に設定\n"
         "   （ローカルの場合は `.env` ファイルに記述）"
     )
+
+# ─── トリガー別対処法 ─────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("🧠 トリガー別対処法")
+st.caption("各トリガーに対するあなた独自の対処法を設定しておくと、衝動のときに即座に確認できます。")
+
+_trigger_options = [
+    "食後",
+    "ストレス・イライラ",
+    "仕事の合間",
+    "お酒を飲んでいる",
+    "友人が吸っているのを見た",
+    "手持ち無沙汰",
+    "眠い・疲れた",
+    "その他",
+]
+
+_existing_strategies = get_coping_strategies()
+_strategy_inputs: dict[str, str] = {}
+
+for _trigger in _trigger_options:
+    _strategy_inputs[_trigger] = st.text_input(
+        f"「{_trigger}」のときの対処法",
+        value=_existing_strategies.get(_trigger, ""),
+        placeholder="例：深呼吸を3回する、冷たい水を飲む",
+        key=f"strategy_{_trigger}",
+    )
+
+if st.button("対処法を保存する", type="primary", use_container_width=True):
+    _saved = 0
+    for _trigger, _strategy in _strategy_inputs.items():
+        if _strategy.strip():
+            upsert_coping_strategy(_trigger, _strategy.strip())
+            _saved += 1
+    st.success(f"✅ 対処法を保存しました！（{_saved}件）")
 
 # ─── アプリ情報 ──────────────────────────────────────────────────────────────
 st.markdown("---")

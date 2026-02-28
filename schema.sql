@@ -107,3 +107,26 @@ CREATE TRIGGER update_partner_shares_updated_at
     FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
 
 -- RLS（Row Level Security）は使わずサービスキーでアクセスするため設定不要
+
+-- ============================================
+-- 再禁煙サポート: 挑戦履歴テーブル
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS quit_attempts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    start_date DATE NOT NULL,              -- 挑戦開始日
+    end_date DATE,                         -- 挑戦終了日（NULLなら現在継続中）
+    days_lasted INTEGER,                   -- 継続日数（end_date - start_date）
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- トリガー別コーピング戦略テーブル
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS coping_strategies (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    trigger TEXT NOT NULL UNIQUE,          -- トリガー名
+    strategy TEXT NOT NULL,               -- 対処法
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);

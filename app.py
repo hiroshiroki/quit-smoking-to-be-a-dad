@@ -8,6 +8,7 @@ import streamlit as st
 
 from utils.supabase_client import (
     get_user_settings,
+    upsert_user_settings,
     get_today_fertility_log,
     achieve_milestone,
     get_achieved_milestones,
@@ -166,8 +167,46 @@ st.caption("男性妊活 × 禁煙サポート")
 settings = get_user_settings()
 
 if not settings:
-    st.warning("まず **設定** 画面から禁煙開始日・タバコ情報を入力してください。")
-    st.page_link("pages/4_設定.py", label="設定画面へ →", icon="⚙️")
+    st.warning("まず禁煙設定を入力してください。")
+
+    st.markdown("#### 🚭 今日から禁煙を始める")
+    st.caption("まずは本数と価格だけ入力すれば始められます。詳細は後から設定できます。")
+
+    with st.form("quick_start_form"):
+        qs_col1, qs_col2 = st.columns(2)
+        with qs_col1:
+            qs_cigarettes = st.number_input(
+                "1日の本数",
+                min_value=1,
+                max_value=100,
+                value=20,
+                step=1,
+            )
+        with qs_col2:
+            qs_price = st.number_input(
+                "1箱の価格（円）",
+                min_value=100,
+                max_value=5000,
+                value=600,
+                step=10,
+            )
+        qs_submitted = st.form_submit_button(
+            "今日から禁煙スタート！🚭",
+            type="primary",
+            use_container_width=True,
+        )
+
+    if qs_submitted:
+        upsert_user_settings(
+            quit_date=date.today(),
+            cigarettes_per_day=int(qs_cigarettes),
+            price_per_pack=int(qs_price),
+            cigarettes_per_pack=20,
+        )
+        st.rerun()
+
+    st.markdown("---")
+    st.page_link("pages/4_設定.py", label="詳細な設定画面へ →", icon="⚙️")
     st.stop()
 
 quit_date = date.fromisoformat(settings["quit_date"])

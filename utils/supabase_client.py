@@ -216,6 +216,78 @@ def add_partner_message(share_code: str, sender: str, message: str) -> dict:
     return res.data[0]
 
 
+# ─── quit_attempts ───────────────────────────────────────────────────────────
+
+def get_quit_attempts() -> list[dict]:
+    """挑戦履歴を全件取得（古い順）"""
+    res = _table("quit_attempts").select("*").order("start_date").execute()
+    return res.data
+
+
+def start_quit_attempt(start_date: date) -> dict:
+    """新しい挑戦を記録する"""
+    res = _table("quit_attempts").insert({"start_date": str(start_date)}).execute()
+    return res.data[0]
+
+
+def end_quit_attempt(end_date: date) -> None:
+    """継続中の挑戦（end_date=NULL）を終了として記録する"""
+    res = (
+        _table("quit_attempts")
+        .select("*")
+        .is_("end_date", "null")
+        .order("start_date", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if res.data:
+        current = res.data[0]
+        start = date.fromisoformat(current["start_date"])
+        days_lasted = (end_date - start).days
+        _table("quit_attempts").update({
+            "end_date": str(end_date),
+            "days_lasted": days_lasted,
+        }).eq("id", current["id"]).execute()
+
+
+def restart_quit() -> Optional[dict]:
+    """禁煙を再スタートする（quit_dateを今日に更新・挑戦履歴を記録）"""
+    existing = get_user_settings()
+    if not existing:
+        return None
+    today = date.today()
+    # 継続中の挑戦を終了として記録
+    end_quit_attempt(today)
+    # 新しい挑戦を開始として記録
+    start_quit_attempt(today)
+    # quit_dateを今日に更新（その他の設定は引き継ぐ）
+    return upsert_user_settings(
+        quit_date=today,
+        cigarettes_per_day=existing["cigarettes_per_day"],
+        price_per_pack=existing["price_per_pack"],
+        cigarettes_per_pack=existing.get("cigarettes_per_pack", 20),
+    )
+
+
+# ─── coping_strategies ───────────────────────────────────────────────────────
+
+def get_coping_strategies() -> dict:
+    """トリガー別コーピング戦略を取得する → {trigger: strategy} のdictで返す"""
+    res = _table("coping_strategies").select("*").execute()
+    return {row["trigger"]: row["strategy"] for row in res.data}
+
+
+def upsert_coping_strategy(trigger: str, strategy: str) -> dict:
+    """トリガー別コーピング戦略を保存する"""
+    res = _table("coping_strategies").upsert(
+        {"trigger": trigger, "strategy": strategy},
+        on_conflict="trigger",
+    ).execute()
+    return res.data[0]
+
+
+# ─── partner_messages ────────────────────────────────────────────────────────
+
 def get_partner_messages(share_code: str) -> list[dict]:
     """指定した共有コードのメッセージを最新50件取得する（新しい順）"""
     res = (
