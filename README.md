@@ -59,6 +59,43 @@ cd smoke
 
 > この設定をしないと API からのアクセスが拒否されます。
 
+#### 2-3. スキーマへのロール権限付与（必須）
+
+`smoke` スキーマは新規作成のため、Supabase の各 DB ロールに対して権限が**自動付与されません**。
+設定しないと、以下のエラーが発生します。
+
+```
+permission denied for schema smoke (code: 42501)
+```
+
+**SQL Editor** で以下の 3 つを順番に実行してください。
+
+**① スキーマへの USAGE 権限**
+
+```sql
+grant usage on schema smoke to anon;
+grant usage on schema smoke to authenticated;
+grant usage on schema smoke to service_role;
+```
+
+**② 既存テーブルへの操作権限**
+
+```sql
+grant select, insert, update, delete
+on all tables in schema smoke
+to anon, authenticated, service_role;
+```
+
+**③ 今後作成するテーブルへの自動適用（重要）**
+
+これを設定しないと、新規テーブルを追加するたびに同じエラーが発生します。
+
+```sql
+alter default privileges in schema smoke
+grant select, insert, update, delete
+on tables to anon, authenticated, service_role;
+```
+
 ### 3. 環境変数の設定
 
 `.env.example` をコピーして `.env` を作成し、Supabase の接続情報を記入します。
