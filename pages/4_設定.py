@@ -6,6 +6,7 @@ from datetime import date
 import streamlit as st
 
 from utils.supabase_client import get_user_settings, upsert_user_settings
+from utils.discord_notifier import is_discord_configured, send_test_message
 
 st.set_page_config(page_title="設定", page_icon="⚙️", layout="centered")
 
@@ -88,6 +89,44 @@ if current:
         st.metric("1箱の価格", f'¥{current["price_per_pack"]:,}')
         st.metric("1日の節約額", f"¥{int(price_per_day):,}")
 
+# ─── Discord通知設定 ─────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("🔔 Discord通知設定")
+
+if is_discord_configured():
+    st.success("✅ Discord Webhookが設定されています")
+
+    # 通知ON/OFFのsession_state管理
+    if "discord_notify_enabled" not in st.session_state:
+        st.session_state["discord_notify_enabled"] = True
+
+    notify_enabled = st.toggle(
+        "通知を有効にする",
+        value=st.session_state["discord_notify_enabled"],
+        key="discord_toggle",
+    )
+    st.session_state["discord_notify_enabled"] = notify_enabled
+
+    if notify_enabled:
+        st.caption("マイルストーン達成時・妊活チェック未入力時にDiscordへ通知します。")
+        if st.button("📨 テストメッセージを送信", use_container_width=True):
+            success = send_test_message()
+            if success:
+                st.success("✅ Discordにテストメッセージを送信しました！")
+            else:
+                st.error("❌ 送信に失敗しました。Webhook URLを確認してください。")
+    else:
+        st.caption("通知は無効になっています。")
+else:
+    st.info(
+        "Discord通知を利用するには、以下の手順でWebhook URLを設定してください：\n\n"
+        "1. Discordでサーバー（またはチャンネル）を作成\n"
+        "2. チャンネル設定 → 連携サービス → ウェブフック → 新しいウェブフック\n"
+        "3. Webhook URLをコピー\n"
+        "4. Streamlit Secrets の `DISCORD_WEBHOOK_URL` に設定\n"
+        "   （ローカルの場合は `.env` ファイルに記述）"
+    )
+
 # ─── アプリ情報 ──────────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("ℹ️ このアプリについて")
@@ -101,4 +140,5 @@ st.markdown("""
 - 🚭 禁煙トラッカー：衝動ログ・マイルストーン管理
 - 🌿 妊活チェック：栄養・生活習慣の日次記録
 - 💌 日記：未来の子どもへのメッセージ
+- 👫 パートナー共有：進捗をパートナーと共有
 """)

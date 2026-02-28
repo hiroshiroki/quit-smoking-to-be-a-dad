@@ -140,3 +140,90 @@ def get_diary_entries() -> list[dict]:
     """日記エントリーを全件取得（新しい順）"""
     res = _table("diary_entries").select("*").order("date", desc=True).execute()
     return res.data
+
+
+# ─── partner_shares ──────────────────────────────────────────────────────────
+
+def get_partner_share() -> Optional[dict]:
+    """有効なパートナー共有設定を取得する（最新1件）"""
+    res = (
+        _table("partner_shares")
+        .select("*")
+        .eq("is_active", True)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def get_partner_share_by_code(code: str) -> Optional[dict]:
+    """共有コードで有効なパートナー共有設定を取得する"""
+    res = (
+        _table("partner_shares")
+        .select("*")
+        .eq("share_code", code)
+        .eq("is_active", True)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def create_partner_share() -> dict:
+    """パートナー共有コードを新規生成して保存する
+
+    既存の有効な共有がある場合は無効化してから新規作成する
+    share_code は secrets.token_urlsafe(6) の先頭8文字を大文字化した英数字文字列
+    """
+    import secrets
+
+    # 既存の有効な共有を無効化
+    existing = get_partner_share()
+    if existing:
+        deactivate_partner_share()
+
+    # 8文字の共有コードを生成（英数字大文字）
+    share_code = secrets.token_urlsafe(6)[:8].upper()
+
+    res = _table("partner_shares").insert({"share_code": share_code, "is_active": True}).execute()
+    return res.data[0]
+
+
+def deactivate_partner_share() -> None:
+    """有効なパートナー共有を無効化する"""
+    existing = get_partner_share()
+    if existing:
+        _table("partner_shares").update({"is_active": False}).eq("id", existing["id"]).execute()
+
+
+# ─── partner_messages ────────────────────────────────────────────────────────
+
+def add_partner_message(share_code: str, sender: str, message: str) -> dict:
+    """パートナーメッセージを追加する
+
+    Args:
+        share_code: 共有コード
+        sender: 送信者種別（'user' または 'partner'）
+        message: メッセージ本文
+    """
+    data = {
+        "share_code": share_code,
+        "sender": sender,
+        "message": message,
+    }
+    res = _table("partner_messages").insert(data).execute()
+    return res.data[0]
+
+
+def get_partner_messages(share_code: str) -> list[dict]:
+    """指定した共有コードのメッセージを最新50件取得する（新しい順）"""
+    res = (
+        _table("partner_messages")
+        .select("*")
+        .eq("share_code", share_code)
+        .order("sent_at", desc=True)
+        .limit(50)
+        .execute()
+    )
+    return res.data

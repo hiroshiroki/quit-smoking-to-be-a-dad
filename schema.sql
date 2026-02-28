@@ -78,3 +78,32 @@ CREATE TRIGGER update_user_settings_updated_at
 CREATE TRIGGER update_fertility_logs_updated_at
     BEFORE UPDATE ON fertility_logs
     FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
+
+-- ============================================
+-- Phase 3: パートナー共有テーブル
+-- ============================================
+
+-- パートナー共有設定テーブル
+CREATE TABLE IF NOT EXISTS partner_shares (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    share_code TEXT NOT NULL UNIQUE,       -- 共有コード（8文字英数大文字）
+    is_active BOOLEAN DEFAULT TRUE,        -- 有効/無効フラグ
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- パートナーメッセージテーブル
+CREATE TABLE IF NOT EXISTS partner_messages (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    share_code TEXT NOT NULL,              -- 対応する共有コード
+    sender TEXT NOT NULL CHECK (sender IN ('user', 'partner')), -- 送信者種別
+    message TEXT NOT NULL,                 -- メッセージ本文
+    sent_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- partner_shares の updated_at 自動更新トリガー
+CREATE TRIGGER update_partner_shares_updated_at
+    BEFORE UPDATE ON partner_shares
+    FOR EACH ROW EXECUTE FUNCTION smoke.update_updated_at_column();
+
+-- RLS（Row Level Security）は使わずサービスキーでアクセスするため設定不要

@@ -15,7 +15,8 @@
 | 🚭 禁煙トラッカー | 「吸いたい」衝動ログ（強度・トリガー・我慢成否）、マイルストーン一覧 |
 | 🌿 妊活チェック | 亜鉛・葉酸・睡眠・運動・ストレスの日次チェックリスト |
 | 💌 日記 | 未来の子どもへのメッセージ投稿・閲覧 |
-| ⚙️ 設定 | 禁煙開始日・1日の本数・タバコ価格の設定 |
+| ⚙️ 設定 | 禁煙開始日・1日の本数・タバコ価格の設定、Discord通知設定 |
+| 👫 パートナー共有 | 共有コード生成・パートナーとの双方向メッセージ |
 
 ---
 
@@ -27,7 +28,7 @@
 | バックエンド / DB | [Supabase](https://supabase.com/)（無料枠：500MB・50,000行） |
 | デプロイ | [Streamlit Community Cloud](https://streamlit.io/cloud)（無料） |
 | グラフ | Plotly |
-| 通知 | LINE Notify（Phase 3で追加予定） |
+| 通知 | Discord Webhook（無料・オプション） |
 
 ---
 
@@ -48,6 +49,12 @@ cd smoke
 #### 2-1. テーブルの作成
 
 プロジェクトの **SQL Editor** を開き、`schema.sql` の内容を貼り付けて実行します。
+
+テーブル作成後、PostgREST のスキーマキャッシュをリフレッシュしてください。
+
+**Supabase ダッシュボード → Settings → API → 「Reload schema cache」をクリック**
+
+> テーブルを新規追加したときに `PGRST205: Could not find the table '...' in the schema cache` が出た場合も、このリフレッシュで解消されます。
 
 #### 2-2. `smoke` スキーマの公開（必須）
 
@@ -109,6 +116,12 @@ cp .env.example .env
 ```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your-anon-key
+
+# オプション：Discord Webhook通知を使う場合
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# オプション：パートナー共有URLの自動生成に使う場合
+APP_URL=https://your-app.streamlit.app
 ```
 
 > **接続情報の確認場所：** Supabase ダッシュボード → Project Settings → API
@@ -212,22 +225,43 @@ streamlit run app.py
 - 禁煙開始日・1日の本数・1箱の価格・1箱の本数を入力して「保存する」をクリックします。
 - 設定内容はダッシュボードの節約金額計算に反映されます。
 
+**Discord通知設定：**
+
+- `DISCORD_WEBHOOK_URL` が設定されている場合、通知ON/OFFのトグルとテスト送信ボタンが表示されます。
+- 通知タイミング：マイルストーン達成時、妊活チェック未入力時（1セッション1回）。
+
+---
+
+### 👫 パートナー共有
+
+禁煙の進捗をパートナーに共有する画面です。
+
+1. 「共有コードを生成する」をクリックすると8文字の共有コードが生成されます。
+2. 生成されたURL（`https://your-app.streamlit.app/?share=XXXXXXXX`）をパートナーに送ります。
+3. パートナーがURLを開くと **閲覧専用ダッシュボード** が表示されます。
+   - 禁煙期間・節約金額・マイルストーン・妊活チェック状況を確認できます。
+   - パートナーは応援メッセージを送ることができます。
+4. このページでパートナーからのメッセージを確認・返信できます。
+5. 「共有を停止する」をクリックすると共有コードが無効になります。
+
 ---
 
 ## ファイル構成
 
 ```
 smoke/
-├── app.py                  # ホーム（ダッシュボード）
+├── app.py                  # ホーム（ダッシュボード）・パートナービュー分岐
 ├── pages/
 │   ├── 1_禁煙トラッカー.py  # 衝動ログ・マイルストーン
 │   ├── 2_妊活チェック.py    # デイリーチェックリスト
 │   ├── 3_日記.py           # 未来の子どもへのメッセージ
-│   └── 4_設定.py           # 禁煙設定・タバコ情報
+│   ├── 4_設定.py           # 禁煙設定・タバコ情報・Discord通知設定
+│   └── 5_パートナー共有.py  # 共有コード生成・双方向メッセージ
 ├── utils/
 │   ├── supabase_client.py  # DB操作関数
 │   ├── calculations.py     # 禁煙日数・節約金額計算
-│   └── milestones.py       # マイルストーン定義（科学的根拠）
+│   ├── milestones.py       # マイルストーン定義（科学的根拠）
+│   └── discord_notifier.py # Discord Webhook通知
 ├── schema.sql              # Supabase テーブル作成 SQL
 ├── requirements.txt        # 依存パッケージ
 ├── .env.example            # 環境変数テンプレート
@@ -246,9 +280,59 @@ smoke/
 ```toml
 SUPABASE_URL = "https://your-project.supabase.co"
 SUPABASE_KEY = "your-anon-key"
+
+# オプション：Discord Webhook通知を使う場合
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
+
+# オプション：パートナー共有URLの自動生成に使う場合
+APP_URL = "https://your-app.streamlit.app"
 ```
 
 5. 「Deploy」をクリック
+
+---
+
+## Discord Webhook通知の設定
+
+マイルストーン達成時・妊活チェック未入力時に Discord へ通知できます。完全無料で、セットアップは約1分です。
+
+### 1. Webhook URL の取得
+
+1. Discord で通知を受け取りたいサーバー（またはチャンネル）を開く
+2. チャンネル名を右クリック → **「チャンネルの編集」**
+3. **「連携サービス」** → **「ウェブフック」** → **「新しいウェブフック」**
+4. 任意の名前（例：`パパ禁煙`）を入力 → **「ウェブフック URL をコピー」**
+
+### 2. 環境変数に設定
+
+**ローカル（`.env`）：**
+
+```env
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxxxxxxxxx/xxxxxxxx
+```
+
+**Streamlit Community Cloud（Secrets）：**
+
+```toml
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/xxxxxxxxxx/xxxxxxxx"
+```
+
+### 3. 動作確認
+
+`DISCORD_WEBHOOK_URL` を設定した状態でアプリを起動すると、**⚙️ 設定** 画面の「Discord通知設定」セクションに **「テストメッセージを送信」** ボタンが表示されます。クリックして Discord に届くことを確認してください。
+
+> 環境変数が未設定の場合はボタンは表示されず、設定手順のガイドが表示されます。
+
+### 通知タイミング
+
+| タイミング | 内容 |
+|-----------|------|
+| マイルストーン達成時 | 達成したマイルストーン名と説明を通知 |
+| ダッシュボードを開いたとき（妊活チェック未入力の場合） | 入力を促すリマインダーを通知。同一セッション内では1回のみ送信 |
+
+> リマインダーは定時ではなく「アプリを開いたタイミング」で送信されます。毎晩ログインする習慣があれば実質的なリマインダーとして機能します。
+
+> `DISCORD_WEBHOOK_URL` を設定しない場合は通知機能が無効になるだけで、アプリは正常に動作します。
 
 ---
 
@@ -271,14 +355,17 @@ SUPABASE_KEY = "your-anon-key"
 
 ---
 
-## 今後の実装予定
+## 実装済み機能（フェーズ別）
+
+### Phase 1（完了）
+- 基本5画面（ダッシュボード・禁煙トラッカー・妊活チェック・日記・設定）
 
 ### Phase 2（完了）
 - 衝動ヒートマップ（時間帯×曜日グラフ）
 - 節約金額の累積グラフ（ダッシュボード）
 - 生活習慣スコアの推移グラフ（妊活チェック）
 
-### Phase 3
-- LINE Notify 連携（毎朝リマインド・マイルストーン通知）
-- PWA 対応（スマホのホーム画面に追加可能）
-- パートナー共有機能
+### Phase 3（完了）
+- Discord Webhook通知（マイルストーン達成・妊活チェックリマインダー）
+- パートナー共有機能（URLパラメータ方式・双方向メッセージ）
+- PWA対応メタタグ（iOSホーム画面への追加）
