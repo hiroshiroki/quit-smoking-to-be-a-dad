@@ -3,6 +3,7 @@
 """
 from datetime import date
 
+import plotly.graph_objects as go
 import streamlit as st
 
 from utils.supabase_client import (
@@ -131,11 +132,74 @@ with st.expander("💡 精子の質を高める栄養素・習慣について"):
 | 😌 **ストレス管理** | 高ストレスはコルチゾールを増加させ精子質を低下 | 瞑想・深呼吸・趣味の時間 |
     """)
 
-# ─── 記録履歴 ────────────────────────────────────────────────────────────────
+def _calc_score(log: dict) -> int:
+    """妊活ログのスコアを計算する（0〜100点）"""
+    score = 0
+    if log.get("zinc"):
+        score += 25
+    if log.get("folate"):
+        score += 25
+    if log.get("exercise"):
+        score += 25
+    sleep = log.get("sleep_hours") or 0
+    if 6.0 <= float(sleep) <= 9.0:
+        score += 15
+    stress = log.get("stress") or 3
+    if int(stress) <= 2:
+        score += 10
+    return score
+
+
+# ─── 生活習慣スコア推移グラフ ────────────────────────────────────────────────
 st.markdown("---")
-st.subheader("📈 直近の記録（最大7日間）")
+st.subheader("📈 生活習慣スコアの推移")
+st.caption("日々の妊活スコア（0〜100点）の変化を確認しましょう")
 
 logs = get_fertility_logs()
+if len(logs) >= 2:
+    # 古い順に並べ替え
+    sorted_logs = sorted(logs, key=lambda x: x.get("date", ""))
+    chart_dates = [log.get("date", "") for log in sorted_logs]
+    chart_scores = [_calc_score(log) for log in sorted_logs]
+
+    fig_score = go.Figure()
+    fig_score.add_trace(
+        go.Bar(
+            x=chart_dates,
+            y=chart_scores,
+            marker_color=[
+                "#2ECC71" if s >= 80 else "#F39C12" if s >= 50 else "#E74C3C"
+                for s in chart_scores
+            ],
+            hovertemplate="%{x}<br>スコア: %{y}点<extra></extra>",
+        )
+    )
+    # 目標ライン
+    fig_score.add_hline(
+        y=80,
+        line_dash="dash",
+        line_color="rgba(46,204,113,0.6)",
+        annotation_text="目標 80点",
+        annotation_position="top right",
+    )
+    fig_score.update_layout(
+        xaxis_title="日付",
+        yaxis_title="スコア（点）",
+        yaxis=dict(range=[0, 105]),
+        height=280,
+        margin=dict(l=10, r=10, t=10, b=10),
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig_score, use_container_width=True)
+else:
+    st.info("2日以上記録するとグラフが表示されます。")
+
+# ─── 記録履歴 ────────────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("📋 直近の記録（最大7日間）")
+
 if logs:
     recent_logs = logs[:7]
     for log in recent_logs:

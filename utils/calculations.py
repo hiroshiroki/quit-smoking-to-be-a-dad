@@ -1,7 +1,7 @@
 """
 禁煙に関する計算ユーティリティ
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 
@@ -45,3 +45,29 @@ def format_days_hours(quit_date: date) -> str:
     if days == 0:
         return f"{hours}時間"
     return f"{days}日 {hours}時間"
+
+
+def get_daily_savings_data(
+    quit_date: date,
+    cigarettes_per_day: int,
+    price_per_pack: int,
+    cigarettes_per_pack: int = 20,
+) -> list[dict]:
+    """禁煙開始日から今日までの日別・累積節約金額データを返す
+
+    Returns:
+        [{"date": date, "daily": int, "cumulative": int}, ...]
+    """
+    price_per_cigarette = price_per_pack / cigarettes_per_pack
+    daily_saving = int(cigarettes_per_day * price_per_cigarette)
+
+    today = date.today()
+    total_days = (today - quit_date).days + 1
+
+    result = []
+    cumulative = 0
+    for i in range(total_days):
+        d = quit_date + timedelta(days=i)
+        cumulative += daily_saving
+        result.append({"date": d, "daily": daily_saving, "cumulative": cumulative})
+    return result

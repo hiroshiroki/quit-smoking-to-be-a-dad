@@ -1,8 +1,9 @@
 """
 禁煙トラッカー画面 - 衝動ログ入力・マイルストーン一覧
 """
-from datetime import date
+from datetime import date, datetime
 
+import plotly.graph_objects as go
 import streamlit as st
 
 from utils.supabase_client import (
@@ -80,11 +81,68 @@ if submitted:
     else:
         st.info("記録しました。次は絶対に乗り越えられます！")
 
+# ─── 衝動ヒートマップ ────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("🗓️ 衝動ヒートマップ（時間帯別）")
+st.caption("衝動が起きやすい時間帯・曜日のパターンを把握しましょう")
+
+logs = get_craving_logs()
+
+if len(logs) >= 3:
+    # 曜日ラベル（月〜日）
+    weekday_labels = ["月", "火", "水", "木", "金", "土", "日"]
+
+    # 時間帯×曜日の件数マトリクスを初期化
+    matrix = [[0] * 24 for _ in range(7)]
+
+    for log in logs:
+        logged_at_str = log.get("logged_at", "")
+        if not logged_at_str:
+            continue
+        try:
+            # タイムゾーン情報を除去してパース
+            logged_at = datetime.fromisoformat(logged_at_str.replace("Z", "+00:00"))
+            hour = logged_at.hour
+            # 0=月曜、6=日曜（Python weekday）
+            weekday = logged_at.weekday()
+            matrix[weekday][hour] += 1
+        except (ValueError, AttributeError):
+            continue
+
+    fig_heatmap = go.Figure(
+        data=go.Heatmap(
+            z=matrix,
+            x=list(range(24)),
+            y=weekday_labels,
+            colorscale="YlOrRd",
+            hovertemplate="曜日: %{y}<br>時間: %{x}時<br>件数: %{z}件<extra></extra>",
+            showscale=True,
+            colorbar=dict(title="件数"),
+        )
+    )
+    fig_heatmap.update_layout(
+        xaxis=dict(
+            title="時間帯",
+            tickmode="linear",
+            tick0=0,
+            dtick=3,
+            tickvals=list(range(0, 24, 3)),
+            ticktext=[f"{h}時" for h in range(0, 24, 3)],
+        ),
+        yaxis=dict(title="曜日"),
+        height=280,
+        margin=dict(l=10, r=10, t=10, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig_heatmap, use_container_width=True)
+else:
+    st.info("3件以上記録するとヒートマップが表示されます。")
+
 # ─── 衝動ログ一覧 ────────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📊 衝動ログ履歴")
 
-logs = get_craving_logs()
 if logs:
     # 我慢成功率の計算
     total = len(logs)

@@ -3,6 +3,7 @@
 """
 from datetime import date
 
+import plotly.graph_objects as go
 import streamlit as st
 
 from utils.supabase_client import get_user_settings, get_today_fertility_log, achieve_milestone, get_achieved_milestones
@@ -12,6 +13,7 @@ from utils.calculations import (
     get_cigarettes_not_smoked,
     format_money,
     format_days_hours,
+    get_daily_savings_data,
 )
 from utils.milestones import (
     get_achieved_milestones as calc_achieved_milestones,
@@ -66,6 +68,45 @@ with col3:
         label="吸わなかった本数",
         value=f"{cigarettes_not_smoked:,} 本",
     )
+
+# ─── 節約金額累積グラフ ───────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("💰 赤ちゃん貯金の推移")
+
+savings_data = get_daily_savings_data(
+    quit_date, cigarettes_per_day, price_per_pack, cigarettes_per_pack
+)
+
+if len(savings_data) >= 2:
+    dates = [row["date"] for row in savings_data]
+    cumulative = [row["cumulative"] for row in savings_data]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=cumulative,
+            mode="lines",
+            fill="tozeroy",
+            line=dict(color="#FF69B4", width=2),
+            fillcolor="rgba(255, 105, 180, 0.15)",
+            name="累積節約金額",
+            hovertemplate="%{x}<br>¥%{y:,}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        xaxis_title="日付",
+        yaxis_title="節約金額（円）",
+        yaxis_tickformat=",",
+        height=280,
+        margin=dict(l=10, r=10, t=10, b=10),
+        showlegend=False,
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("2日以上経過するとグラフが表示されます。")
 
 # ─── マイルストーン ───────────────────────────────────────────────────────────
 st.markdown("---")
