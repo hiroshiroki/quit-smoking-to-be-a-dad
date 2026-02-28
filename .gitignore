@@ -1,0 +1,10 @@
+# 環境変数
+.env
+
+# メモ
+memo.md
+
+# Pythonキャッシュ
+__pycache__/
+*.pyc
+*.pyo
