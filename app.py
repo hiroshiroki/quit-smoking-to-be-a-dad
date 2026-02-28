@@ -22,6 +22,7 @@ from utils.calculations import (
     format_money,
     format_days_hours,
     get_daily_savings_data,
+    to_jst_str,
 )
 from utils.milestones import (
     get_achieved_milestones as calc_achieved_milestones,
@@ -145,7 +146,7 @@ if share_code:
         st.markdown("---")
         st.subheader("📩 メッセージ履歴")
         for msg in messages:
-            sent_at = msg["sent_at"][:16].replace("T", " ")
+            sent_at = to_jst_str(msg["sent_at"])
             if msg["sender"] == "user":
                 with st.chat_message("user"):
                     st.markdown(msg["message"])

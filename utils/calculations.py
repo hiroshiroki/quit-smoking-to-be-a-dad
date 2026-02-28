@@ -1,8 +1,22 @@
 """
 禁煙に関する計算ユーティリティ
 """
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+
+# 日本標準時（UTC+9）
+_JST = timezone(timedelta(hours=9))
+
+
+def to_jst_str(utc_str: str) -> str:
+    """UTC タイムスタンプ文字列を JST の「YYYY-MM-DD HH:MM」形式に変換する"""
+    if not utc_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
+        return dt.astimezone(_JST).strftime("%Y-%m-%d %H:%M")
+    except (ValueError, AttributeError):
+        return utc_str[:16].replace("T", " ")
 
 
 def get_smoke_free_days(quit_date: date) -> int:

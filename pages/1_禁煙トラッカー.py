@@ -11,7 +11,7 @@ from utils.supabase_client import (
     add_craving_log,
     get_craving_logs,
 )
-from utils.calculations import get_smoke_free_days
+from utils.calculations import get_smoke_free_days, to_jst_str
 from utils.milestones import MILESTONES, get_achieved_milestones, get_next_milestone
 
 st.set_page_config(page_title="禁煙トラッカー", page_icon="🚭", layout="centered")
@@ -52,7 +52,12 @@ with st.form("craving_form", clear_on_submit=True):
         "眠い・疲れた",
         "その他",
     ]
-    trigger = st.selectbox("きっかけ（トリガー）", trigger_options)
+    trigger_select = st.selectbox("きっかけ（トリガー）", trigger_options)
+    trigger_other = st.text_input(
+        "その他のきっかけ（「その他」を選んだ場合に入力）",
+        placeholder="例：会議のプレッシャー、コーヒーを飲んだ",
+        max_chars=50,
+    )
 
     resisted = st.radio(
         "結果",
@@ -70,6 +75,8 @@ with st.form("craving_form", clear_on_submit=True):
     submitted = st.form_submit_button("記録する", type="primary", use_container_width=True)
 
 if submitted:
+    # 「その他」が選ばれた場合は自由入力テキストを使用
+    trigger = (trigger_other.strip() or "その他") if trigger_select == "その他" else trigger_select
     add_craving_log(
         intensity=intensity,
         trigger=trigger,
@@ -95,13 +102,17 @@ if len(logs) >= 3:
     # 時間帯×曜日の件数マトリクスを初期化
     matrix = [[0] * 24 for _ in range(7)]
 
+    from datetime import timezone, timedelta as _td
+    _JST = timezone(_td(hours=9))
+
     for log in logs:
         logged_at_str = log.get("logged_at", "")
         if not logged_at_str:
             continue
         try:
-            # タイムゾーン情報を除去してパース
+            # UTCでパースしてJST（UTC+9）に変換
             logged_at = datetime.fromisoformat(logged_at_str.replace("Z", "+00:00"))
+            logged_at = logged_at.astimezone(_JST)
             hour = logged_at.hour
             # 0=月曜、6=日曜（Python weekday）
             weekday = logged_at.weekday()
@@ -157,7 +168,7 @@ if logs:
     st.markdown("---")
     # 最近のログを表示（最大10件）
     for log in logs[:10]:
-        logged_at = log.get("logged_at", "")[:16].replace("T", " ")
+        logged_at = to_jst_str(log.get("logged_at", ""))
         intensity_val = log.get("intensity", 0)
         trigger_val = log.get("trigger", "")
         resisted_val = log.get("resisted", True)

@@ -5,6 +5,7 @@ import os
 
 import streamlit as st
 
+from utils.calculations import to_jst_str
 from utils.supabase_client import (
     get_partner_share,
     create_partner_share,
@@ -85,7 +86,7 @@ if share:
         st.markdown("---")
         st.subheader("📩 メッセージ履歴")
         for msg in messages:
-            sent_at = msg["sent_at"][:16].replace("T", " ")  # YYYY-MM-DD HH:MM 形式
+            sent_at = to_jst_str(msg["sent_at"])  # JST に変換して表示
             if msg["sender"] == "user":
                 with st.chat_message("user"):
                     st.markdown(msg["message"])
