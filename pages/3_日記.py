@@ -36,7 +36,7 @@ with st.form("diary_form", clear_on_submit=True):
         max_chars=1000,
     )
 
-    submitted = st.form_submit_button("保存する 💌", type="primary", use_container_width=True)
+    submitted = st.form_submit_button("保存する 💌", type="primary", width='stretch')
 
 if submitted:
     if message.strip():

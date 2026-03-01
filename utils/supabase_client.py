@@ -2,8 +2,10 @@
 Supabaseクライアントの初期化と共通データアクセス関数
 """
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
 from typing import Optional
+
+_JST = timezone(timedelta(hours=9))
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -38,10 +40,31 @@ def get_user_settings() -> Optional[dict]:
 
 def upsert_user_settings(quit_date: date, cigarettes_per_day: int,
                          price_per_pack: int, cigarettes_per_pack: int = 20) -> dict:
-    """ユーザー設定を保存する（既存があれば上書き）"""
+    """ユーザー設定を保存する（既存があれば上書き）
+
+    quit_datetime の扱い：
+    - quit_date が今日かつ既存の quit_datetime がない → 現在時刻（JST）を記録
+    - quit_date が今日かつ既存と同じ quit_date → 既存の quit_datetime を維持（本数変更などで時刻をリセットしない）
+    - quit_date が変わった場合 → 今日なら現在時刻、過去日付なら当日JST 0時を記録
+    """
     existing = get_user_settings()
+
+    # quit_datetime の決定
+    if existing and existing.get("quit_datetime"):
+        existing_quit_date = date.fromisoformat(existing["quit_date"])
+        if existing_quit_date == quit_date:
+            # quit_date 変更なし → 既存の quit_datetime を維持
+            quit_dt_str = existing["quit_datetime"]
+        else:
+            # quit_date が変わった → 新しい時刻を設定
+            quit_dt_str = _make_quit_datetime(quit_date)
+    else:
+        # 初回または quit_datetime 未記録 → 新しく設定
+        quit_dt_str = _make_quit_datetime(quit_date)
+
     data = {
         "quit_date": str(quit_date),
+        "quit_datetime": quit_dt_str,
         "cigarettes_per_day": cigarettes_per_day,
         "price_per_pack": price_per_pack,
         "cigarettes_per_pack": cigarettes_per_pack,
@@ -51,6 +74,19 @@ def upsert_user_settings(quit_date: date, cigarettes_per_day: int,
     else:
         res = _table("user_settings").insert(data).execute()
     return res.data[0]
+
+
+def _make_quit_datetime(quit_date: date) -> str:
+    """quit_date に対応する quit_datetime 文字列を生成する。
+    今日の場合は現在のJST時刻、過去日付は当日JST 0時を返す。
+    """
+    today = date.today()
+    if quit_date == today:
+        dt = datetime.now(_JST)
+    else:
+        dt = datetime(quit_date.year, quit_date.month, quit_date.day,
+                      0, 0, 0, tzinfo=_JST)
+    return dt.isoformat()
 
 
 # ─── craving_logs ────────────────────────────────────────────────────────────

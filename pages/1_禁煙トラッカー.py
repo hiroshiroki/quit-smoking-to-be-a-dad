@@ -22,6 +22,12 @@ st.set_page_config(page_title="禁煙トラッカー", page_icon="🚭", layout=
 
 st.title("🚭 禁煙トラッカー")
 
+# 再スタートUIの表示フラグを初期化
+if "show_restart_ui" not in st.session_state:
+    st.session_state["show_restart_ui"] = False
+if "restart_smoke_free_days" not in st.session_state:
+    st.session_state["restart_smoke_free_days"] = 0
+
 settings = get_user_settings()
 if not settings:
     st.warning("設定画面から禁煙開始日を入力してください。")
@@ -183,7 +189,7 @@ with st.form("craving_form", clear_on_submit=True):
         max_chars=200,
     )
 
-    submitted = st.form_submit_button("記録する", type="primary", use_container_width=True)
+    submitted = st.form_submit_button("記録する", type="primary", width='stretch')
 
 if submitted:
     # 「その他」が選ばれた場合は自由入力テキストを使用
@@ -196,18 +202,25 @@ if submitted:
     )
     if resisted:
         st.success("💪 よく我慢しました！記録しました。")
+        st.session_state["show_restart_ui"] = False
     else:
         st.warning("記録しました。次は絶対に乗り越えられます！")
-        st.markdown("---")
-        # ─── 再禁煙サポート ────────────────────────────────────────────────
-        st.info(
-            f"**吸ってしまっても失敗ではありません。** 禁煙は挑戦の連続です。\n\n"
-            f"あなたはここまで **{smoke_free_days}日間** 禁煙できていました。その頑張りは本物です。\n\n"
-            "また今日から一緒に頑張りましょう！"
-        )
-        if st.button("🔄 今日から再スタートする", type="primary", use_container_width=True):
-            restart_quit()
-            st.rerun()
+        # session_stateで再スタートUIの表示フラグを立てる
+        st.session_state["show_restart_ui"] = True
+        st.session_state["restart_smoke_free_days"] = smoke_free_days
+
+# ─── 再禁煙サポート（if submitted の外で描画することでボタンが機能する）────
+if st.session_state.get("show_restart_ui"):
+    st.markdown("---")
+    st.info(
+        f"**吸ってしまっても失敗ではありません。** 禁煙は挑戦の連続です。\n\n"
+        f"あなたはここまで **{st.session_state['restart_smoke_free_days']}日間** 禁煙できていました。その頑張りは本物です。\n\n"
+        "また今日から一緒に頑張りましょう！"
+    )
+    if st.button("🔄 今日から再スタートする", type="primary", width='stretch'):
+        restart_quit()
+        st.session_state["show_restart_ui"] = False
+        st.rerun()
 
 # ─── 衝動ヒートマップ ────────────────────────────────────────────────────────
 st.markdown("---")
@@ -267,7 +280,7 @@ if len(logs) >= 3:
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+    st.plotly_chart(fig_heatmap, width='stretch')
 else:
     st.info("3件以上記録するとヒートマップが表示されます。")
 

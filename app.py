@@ -67,6 +67,7 @@ if share_code:
         st.stop()
 
     quit_date = date.fromisoformat(settings["quit_date"])
+    quit_datetime_str = settings.get("quit_datetime")
     cigarettes_per_day = settings["cigarettes_per_day"]
     price_per_pack = settings["price_per_pack"]
     cigarettes_per_pack = settings.get("cigarettes_per_pack", 20)
@@ -83,7 +84,7 @@ if share_code:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("禁煙期間", format_days_hours(quit_date))
+        st.metric("禁煙期間", format_days_hours(quit_date, quit_datetime_str))
     with col2:
         st.metric("赤ちゃん貯金", format_money(saved_money))
     with col3:
@@ -132,7 +133,7 @@ if share_code:
             placeholder="一緒に頑張ろう！応援しているよ！",
             max_chars=500,
         )
-        send_btn = st.form_submit_button("応援メッセージを送る 💪", use_container_width=True, type="primary")
+        send_btn = st.form_submit_button("応援メッセージを送る 💪", width='stretch', type="primary")
 
     if send_btn and partner_message.strip():
         add_partner_message(share_code, "partner", partner_message.strip())
@@ -193,7 +194,7 @@ if not settings:
         qs_submitted = st.form_submit_button(
             "今日から禁煙スタート！🚭",
             type="primary",
-            use_container_width=True,
+            width='stretch',
         )
 
     if qs_submitted:
@@ -210,6 +211,7 @@ if not settings:
     st.stop()
 
 quit_date = date.fromisoformat(settings["quit_date"])
+quit_datetime_str = settings.get("quit_datetime")
 cigarettes_per_day = settings["cigarettes_per_day"]
 price_per_pack = settings["price_per_pack"]
 cigarettes_per_pack = settings.get("cigarettes_per_pack", 20)
@@ -226,7 +228,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(
         label="禁煙期間",
-        value=format_days_hours(quit_date),
+        value=format_days_hours(quit_date, quit_datetime_str),
     )
 with col2:
     st.metric(
@@ -274,7 +276,7 @@ if len(savings_data) >= 2:
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 else:
     st.info("2日以上経過するとグラフが表示されます。")
 

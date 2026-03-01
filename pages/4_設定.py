@@ -66,7 +66,7 @@ with st.form("settings_form"):
         help="1箱に入っているタバコの本数（通常20本）",
     )
 
-    submitted = st.form_submit_button("設定を保存する", type="primary", use_container_width=True)
+    submitted = st.form_submit_button("設定を保存する", type="primary", width='stretch')
 
 if submitted:
     upsert_user_settings(
@@ -114,7 +114,7 @@ if is_discord_configured():
 
     if notify_enabled:
         st.caption("マイルストーン達成時・妊活チェック未入力時にDiscordへ通知します。")
-        if st.button("📨 テストメッセージを送信", use_container_width=True):
+        if st.button("📨 テストメッセージを送信", width='stretch'):
             success = send_test_message()
             if success:
                 st.success("✅ Discordにテストメッセージを送信しました！")
@@ -159,7 +159,7 @@ for _trigger in _trigger_options:
         key=f"strategy_{_trigger}",
     )
 
-if st.button("対処法を保存する", type="primary", use_container_width=True):
+if st.button("対処法を保存する", type="primary", width='stretch'):
     _saved = 0
     for _trigger, _strategy in _strategy_inputs.items():
         if _strategy.strip():

@@ -1,6 +1,7 @@
 """
 禁煙に関する計算ユーティリティ
 """
+import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -8,13 +9,28 @@ from typing import Optional
 _JST = timezone(timedelta(hours=9))
 
 
+def _parse_ts(ts_str: str) -> datetime:
+    """Supabase の TIMESTAMPTZ 文字列を datetime に変換する。
+
+    Python 3.10 の fromisoformat() はマイクロ秒が正確に6桁でないと失敗するため、
+    1〜5桁のマイクロ秒をゼロパディングして正規化する。
+    例: '2026-03-01T01:46:44.24046+00:00' → '2026-03-01T01:46:44.240460+00:00'
+    """
+    s = ts_str.replace("Z", "+00:00")
+    s = re.sub(
+        r"\.(\d{1,5})([+-])",
+        lambda m: f".{m.group(1).ljust(6, '0')}{m.group(2)}",
+        s,
+    )
+    return datetime.fromisoformat(s)
+
+
 def to_jst_str(utc_str: str) -> str:
     """UTC タイムスタンプ文字列を JST の「YYYY-MM-DD HH:MM」形式に変換する"""
     if not utc_str:
         return ""
     try:
-        dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
-        return dt.astimezone(_JST).strftime("%Y-%m-%d %H:%M")
+        return _parse_ts(utc_str).astimezone(_JST).strftime("%Y-%m-%d %H:%M")
     except (ValueError, AttributeError):
         return utc_str[:16].replace("T", " ")
 
@@ -48,12 +64,28 @@ def format_money(amount: int) -> str:
     return f"¥{amount:,}"
 
 
-def format_days_hours(quit_date: date) -> str:
-    """禁煙期間を「○日○時間」形式で返す"""
-    now = datetime.now()
-    quit_datetime = datetime.combine(quit_date, datetime.min.time())
-    delta = now - quit_datetime
-    total_hours = int(delta.total_seconds() / 3600)
+def format_days_hours(quit_date: date, quit_datetime_str: Optional[str] = None) -> str:
+    """禁煙期間を「○日○時間」形式で返す。
+
+    quit_datetime_str が与えられた場合はその時刻から正確に計算する。
+    未指定の場合は quit_date の当日 JST 0時を起点とする。
+    """
+    now = datetime.now(_JST)
+    if quit_datetime_str:
+        # DBに記録された正確な時刻（タイムゾーン付き）から計算
+        quit_dt = _parse_ts(quit_datetime_str).astimezone(_JST)
+    else:
+        # fallback: 当日 JST 0時を起点にする
+        quit_dt = datetime(quit_date.year, quit_date.month, quit_date.day,
+                           0, 0, 0, tzinfo=_JST)
+    delta = now - quit_dt
+    total_seconds = int(delta.total_seconds())
+    if total_seconds < 0:
+        return "0分"
+    total_minutes = total_seconds // 60
+    if total_minutes < 60:
+        return f"{total_minutes}分"
+    total_hours = total_minutes // 60
     days = total_hours // 24
     hours = total_hours % 24
     if days == 0:

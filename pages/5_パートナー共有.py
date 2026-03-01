@@ -47,13 +47,13 @@ if share:
             "環境変数 `APP_URL` にデプロイ先URLを設定するとURLが自動生成されます。"
         )
 
-    if st.button("🛑 共有を停止する", use_container_width=True, type="secondary"):
+    if st.button("🛑 共有を停止する", width='stretch', type="secondary"):
         deactivate_partner_share()
         st.success("共有を停止しました。")
         st.rerun()
 else:
     st.info("共有コードを生成して、パートナーに禁煙の進捗を見せましょう。")
-    if st.button("🔑 共有コードを生成する", use_container_width=True, type="primary"):
+    if st.button("🔑 共有コードを生成する", width='stretch', type="primary"):
         share = create_partner_share()
         st.rerun()
 
@@ -71,7 +71,7 @@ if share:
             placeholder="今日も頑張っているよ！",
             max_chars=500,
         )
-        send_btn = st.form_submit_button("送信する 📨", use_container_width=True)
+        send_btn = st.form_submit_button("送信する 📨", width='stretch')
 
     if send_btn and message_text.strip():
         add_partner_message(share_code, "user", message_text.strip())

@@ -84,7 +84,7 @@ with st.form("fertility_form"):
         max_chars=300,
     )
 
-    submitted = st.form_submit_button("保存する", type="primary", use_container_width=True)
+    submitted = st.form_submit_button("保存する", type="primary", width='stretch')
 
 if submitted:
     upsert_fertility_log(
@@ -192,7 +192,7 @@ if len(logs) >= 2:
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig_score, use_container_width=True)
+    st.plotly_chart(fig_score, width='stretch')
 else:
     st.info("2日以上記録するとグラフが表示されます。")
 

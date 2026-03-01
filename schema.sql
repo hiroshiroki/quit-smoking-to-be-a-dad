@@ -12,13 +12,17 @@ CREATE SCHEMA IF NOT EXISTS smoke;
 -- 禁煙設定テーブル
 CREATE TABLE IF NOT EXISTS smoke.user_settings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    quit_date DATE NOT NULL,               -- 禁煙開始日
+    quit_date DATE NOT NULL,               -- 禁煙開始日（日付のみ）
+    quit_datetime TIMESTAMPTZ,             -- 禁煙開始日時（正確な時刻、JSTで保存）
     cigarettes_per_day INTEGER NOT NULL,   -- 1日の本数
     price_per_pack INTEGER NOT NULL,       -- 1箱の価格（円）
     cigarettes_per_pack INTEGER DEFAULT 20, -- 1箱の本数
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ※ 既存テーブルに列を追加する場合:
+-- ALTER TABLE smoke.user_settings ADD COLUMN IF NOT EXISTS quit_datetime TIMESTAMPTZ;
 
 -- 衝動ログテーブル
 CREATE TABLE IF NOT EXISTS smoke.craving_logs (
